@@ -15,11 +15,11 @@ import javax.swing.JPanel;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.border.*;
- 
+
 /**
- * 一个计算器，与Windows附件自带计算器的标准版功能、界面相仿。 支持键盘操作。
+ * 一个科学计算器，与Windows附件自带计算器的科学版功能、界面相仿。 支持键盘操作。
  */
-public class Calculator extends JFrame implements ActionListener,MouseListener,KeyListener {
+public class Science_Calculator extends JFrame implements ActionListener,MouseListener,KeyListener {
     /**
 	 * 
 	 */
@@ -84,7 +84,7 @@ public class Calculator extends JFrame implements ActionListener,MouseListener,K
     /**
      * 构造函数
      */
-    public Calculator() {
+    public Science_Calculator() {
         super();
         // 初始化计算器
         init();
@@ -731,13 +731,6 @@ public class Calculator extends JFrame implements ActionListener,MouseListener,K
         	// 赋值运算
             resultNum = getNumberFromText();
         }
-    }
-
-    public static void main(String[] args) {
-        Calculator calculator1 = new Calculator();
-        calculator1.setVisible(true);
-        calculator1.resultText.requestFocus();
-        calculator1.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     }
 }
 
