@@ -1,5 +1,6 @@
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.ComponentOrientation;
 import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
@@ -8,16 +9,20 @@ import java.awt.event.MouseListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.KeyListener;
 import java.awt.event.KeyEvent;
- 
+
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import javax.script.ScriptException;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.border.*;
-
+ 
 /**
- * 一个科学计算器，与Windows附件自带计算器的科学版功能、界面相仿。 支持键盘操作。
+ *  面向专业人群的高级计算器，仍在调试中，使用不当会傲娇
  */
 public class Science_Calculator extends JFrame implements ActionListener,MouseListener,KeyListener {
     /**
@@ -25,14 +30,15 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
 	 */
 	private static final long serialVersionUID = -3766098379635768992L;
 	/** 计算器上的键的显示名字 */
-    private final String[] KEYS = { "CE", "C", "←", "÷", "7", "8", "9", "×",
-            "4", "5", "6", "－", "1", "2", "3", "＋", "±", "0", "·", "=" };
+    private final String[] KEYS = {"e","CE", "C", "←", "÷", "π","7", "8", "9", "×", "Ran",
+            "4", "5", "6", "－", "±", "1", "2", "3", "＋", "(", ")", "0", "·", "=" };
     /** 计算器上的功能键的显示名字 */
-    private final String[] COMMAND = { "%", "√", "x²" ,"1/x"};
+    private final String[] COMMAND = {"Mod", "<HTML>x<sup>y</sup></HTML>", "sin", "cos", "tan",
+    		"Deg", "In", "<HTML>sin<sup>-1</sup></HTML>", "<HTML>cos<sup>-1</sup></HTML>", "<HTML>tan<sup>-1</sup></HTML>"};
     /** 计算器上的M键的显示名字 */
     private final String[] M = {"MC", "MR", "MS", "M+","M-","M1" };
     /** 计算器上的切换键的显示名字 */
-    private final String[] SWITCHBUTTON = {"⇌","↺"}; 
+    private final String[] SWITCHBUTTON = {"⇌","↺","F-E"}; 
     /** 计算器上键的按钮 */
     private JButton keys[] = new JButton[KEYS.length];
     /** 计算器上的功能键的按钮 */
@@ -40,7 +46,9 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
     /** 计算器左边的M的按钮 */
     private JButton m[] = new JButton[M.length];
     /** 计算器上的切换键的按钮 */
-    private final JButton switchbutton[] = new JButton[SWITCHBUTTON.length]; 
+    private JButton switchbutton[] = new JButton[SWITCHBUTTON.length]; 
+    /** 计算器上的历史记录删除键的按钮 */
+    private JButton delete = new JButton("Delete");
     /** 计算结果文本框 */
     private JTextField resultText = new JTextField("0");
     /** 计算过程文本框 */
@@ -48,26 +56,31 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
     /** 占位文本框 */
     private JTextField nullText = new JTextField("");
     /** 切换标示文本框 */
-    private JTextField switchText = new JTextField("  标准");
+    private JTextField switchText = new JTextField("  科学");
     /** 历史文本域 */
-    private JTextArea historyText = new JTextArea("尚无历史记录");
+    private JTextArea historyText = new JTextArea("  尚无历史记录");
+    /** 历史文本域滚动条 */
+    private JScrollPane scroll = new JScrollPane(historyText);
     /** 运算键画板 */
     private JPanel calckeysPanel = new JPanel();
     /** 功能键画板 */
     private JPanel commandsPanel = new JPanel();
     /** M键画板 */
     private JPanel calmsPanel = new JPanel();
+    /** 功能切换画板*/
+    private JPanel switchPanel = new JPanel();
     /** 按键画板 */
     private JPanel panel1 = new JPanel();
     /** 文本框画板 */
     private JPanel top = new JPanel();
-    /** 功能切换画板*/
-    private JPanel switchpanel = new JPanel();
+    /** 文本框画板1 */
+    private JPanel top1 = new JPanel();
+    /** 文本框画板2 */
+    private JPanel top2 = new JPanel();
+
     
     // 标志用户按的是否是整个表达式的第一个数字,或者是运算符后的第一个数字
     private boolean firstDigit = true;
-    // 计算的中间结果
-    private double resultNum = 0.0;
     // 计算的存储结果
     private double memory[] ={0.0,0.0,0.0};
     // 当前储存的内存编号
@@ -78,8 +91,6 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
     private boolean memoryFlag[] = {false,false,false};
     // 当前是否具有数字输入
     private boolean operation = true;
-    // 操作是否合法
-    private boolean operateValidFlag = true;
  
     /**
      * 构造函数
@@ -107,16 +118,18 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
         resultText.setHorizontalAlignment(JTextField.RIGHT);
         operationText.setHorizontalAlignment(JTextField.RIGHT);
         switchText.setHorizontalAlignment(JTextField.LEFT);
+        historyText.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT);
         // 不允许修改结果文本框
         resultText.setEditable(false);
         operationText.setEditable(false);
         nullText.setEditable(false);
         switchText.setEditable(false);
+        historyText.setEditable(false);
         // 设置文本框背景颜色为黑色，无边框,字体为白色，调整字号
         resultText.setBackground(new Color(0,0,0));
         resultText.setForeground(new Color(255,251,240));
         resultText.setBorder(null);
-        resultText.setFont(new java.awt.Font("微软雅黑", 0, 54));
+        resultText.setFont(new java.awt.Font("微软雅黑", 0, 56));
         operationText.setBackground(new Color(0,0,0));
         operationText.setForeground(new Color(200,200,200));
         operationText.setBorder(null);
@@ -127,16 +140,23 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
         switchText.setForeground(new Color(255,251,240));
         switchText.setBorder(null);
         switchText.setFont(new java.awt.Font("微软雅黑", 1, 20));
+        historyText.setBackground(Color.darkGray);
+        historyText.setForeground(new Color(255,251,240));  
+        historyText.setFont(new java.awt.Font("微软雅黑", 0, 20));
+        // 调整历史记录文本域的大小，无边框，水平方向396个象素，垂直方向365个象素
+        scroll.setPreferredSize(new Dimension(396,346));
+        scroll.setBorder(null);
         // 添加事件侦听器以便输入
         resultText.addKeyListener(this);
         operationText.addKeyListener(this);
         nullText.addKeyListener(this);
         switchText.addKeyListener(this);
         
+        
         // 初始化计算器上键的按钮，将键放在一个画板内
         // 用网格布局器，4行，5列的网格，网格之间的水平方向间隔为3个象素，垂直方向间隔为3个象素
         // 前景色白色，背景色灰色，不显示边框和焦点框，大小为水平方向99个象素，垂直方向69个象素
-        calckeysPanel.setLayout(new GridLayout(5, 4, 0, 0));
+        calckeysPanel.setLayout(new GridLayout(5, 5, 0, 0));
         for (int i = 0; i < KEYS.length; i++) {
             keys[i] = new JButton(KEYS[i]);
             calckeysPanel.add(keys[i]);
@@ -144,37 +164,42 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
             keys[i].setForeground(Color.white);
             keys[i].setBorderPainted(false);
             keys[i].setFocusPainted(false);
-            keys[i].setPreferredSize(new Dimension(99,69));
+            keys[i].setPreferredSize(new Dimension(78,55));
         }
         
         // 调整各按钮的字体和字号
-        keys[0].setFont(new java.awt.Font("Malgun Gothic", 0, 20));
-        keys[1].setFont(new java.awt.Font("Malgun Gothic", 0, 20));
-        keys[2].setFont(new java.awt.Font("微软雅黑", 0, 20));
-        keys[3].setFont(new java.awt.Font("Yu Mincho Light", 0, 26));
-        keys[4].setFont(new java.awt.Font("微软雅黑", 0, 26));
-        keys[5].setFont(new java.awt.Font("微软雅黑", 0, 26));
-        keys[6].setFont(new java.awt.Font("微软雅黑", 0, 26));
-        keys[7].setFont(new java.awt.Font("Yu Mincho Light", 0, 26));
-        keys[8].setFont(new java.awt.Font("微软雅黑", 0, 26));
-        keys[9].setFont(new java.awt.Font("微软雅黑", 0, 26));
-        keys[10].setFont(new java.awt.Font("微软雅黑", 0, 26));
-        keys[11].setFont(new java.awt.Font("Yu Mincho Light", 0, 26));
-        keys[12].setFont(new java.awt.Font("微软雅黑", 0, 26));
-        keys[13].setFont(new java.awt.Font("微软雅黑", 0, 26));
-        keys[14].setFont(new java.awt.Font("微软雅黑", 0, 26));
-        keys[15].setFont(new java.awt.Font("Yu Mincho Light", 0, 26));
-        keys[16].setFont(new java.awt.Font("Yu Mincho Light", 0, 26));
-        keys[17].setFont(new java.awt.Font("微软雅黑", 0, 26));
-        keys[18].setFont(new java.awt.Font("微软雅黑", 0, 34));
-        keys[19].setFont(new java.awt.Font("Yu Mincho Light", 0, 26));       
+        keys[0].setFont(new java.awt.Font("微软雅黑", 0, 16));
+        keys[1].setFont(new java.awt.Font("Malgun Gothic", 1, 16));
+        keys[2].setFont(new java.awt.Font("Malgun Gothic", 1, 16));
+        keys[3].setFont(new java.awt.Font("微软雅黑", 0, 16));
+        keys[4].setFont(new java.awt.Font("Yu Mincho Light", 0, 24));
+        keys[5].setFont(new java.awt.Font("微软雅黑", 0, 16));
+        keys[6].setFont(new java.awt.Font("微软雅黑", 0, 22));
+        keys[7].setFont(new java.awt.Font("微软雅黑", 0, 22));
+        keys[8].setFont(new java.awt.Font("微软雅黑", 0, 22));
+        keys[9].setFont(new java.awt.Font("Yu Mincho Light", 0, 24));
+        keys[10].setFont(new java.awt.Font("微软雅黑", 0, 16));
+        keys[11].setFont(new java.awt.Font("微软雅黑", 0, 22));
+        keys[12].setFont(new java.awt.Font("微软雅黑", 0, 22));
+        keys[13].setFont(new java.awt.Font("微软雅黑", 0, 22));
+        keys[14].setFont(new java.awt.Font("Yu Mincho Light", 0, 24));
+        keys[15].setFont(new java.awt.Font("Yu Mincho Light", 0, 22));
+        keys[16].setFont(new java.awt.Font("微软雅黑", 0, 22));
+        keys[17].setFont(new java.awt.Font("微软雅黑", 0, 22));
+        keys[18].setFont(new java.awt.Font("微软雅黑", 0, 22));
+        keys[19].setFont(new java.awt.Font("Yu Mincho Light", 0, 24));
+        keys[20].setFont(new java.awt.Font("微软雅黑", 0, 16));
+        keys[21].setFont(new java.awt.Font("微软雅黑", 0, 16));
+        keys[22].setFont(new java.awt.Font("微软雅黑", 0, 22));
+        keys[23].setFont(new java.awt.Font("微软雅黑", 0, 30));
+        keys[24].setFont(new java.awt.Font("Yu Mincho Light", 0, 24));       
         
         // 初始化功能键，将功能键放在一个画板内 
         // 将边框设置为上下两侧，宽度为1个象素，颜色深灰
-        commandsPanel.setBorder(new MatteBorder(1, 0, 1, 0, new Color(100, 100, 100)));
+        commandsPanel.setBorder(new MatteBorder(0, 0, 1, 0, new Color(100, 100, 100)));
         // 用网格布局器，1行，3列的网格，网格之间的水平方向间隔为0个象素，垂直方向间隔为0个象素
         // 前景色白色，背景色灰色，不显示边框和焦点框，大小为水平方向99个象素，垂直方向69个象素
-        commandsPanel.setLayout(new GridLayout(1, 4, 0, 0));
+        commandsPanel.setLayout(new GridLayout(2, 5, 0, 0));
         for (int i = 0; i < COMMAND.length; i++) {
             commands[i] = new JButton(COMMAND[i]);
             commandsPanel.add(commands[i]);
@@ -182,15 +207,14 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
             commands[i].setForeground(Color.white);
             commands[i].setBorderPainted(false);
             commands[i].setFocusPainted(false);
-            commands[i].setPreferredSize(new Dimension(99,69));
+            commands[i].setPreferredSize(new Dimension(78,55));
+            commands[i].setFont(new java.awt.Font("Malgun Gothic", 0, 16));
         }
         
-        commands[0].setFont(new java.awt.Font("Yu Mincho", 0, 18));
-        commands[1].setFont(new java.awt.Font("Yu Mincho", 0, 18));
-        commands[2].setFont(new java.awt.Font("Times New Roman", 2, 20));
-        commands[3].setFont(new java.awt.Font("Times New Roman", 2, 20));
  
         // 初始化M键，将M键放在一个画板内
+        // 将边框设置为上侧，宽度为1个象素，颜色深灰
+        calmsPanel.setBorder(new MatteBorder(1, 0, 1, 0, new Color(100, 100, 100)));
         // 用网格布局管理器，5行，1列的网格，网格之间的水平方向间隔为0个象素，垂直方向间隔为0个象素
         // 前景色白色，背景色灰色，不显示边框和焦点框，大小为水平方向66个象素，垂直方向40个象素
         calmsPanel.setLayout(new GridLayout(1, 6, 0, 0));
@@ -201,14 +225,18 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
             m[i].setForeground(Color.white);
             m[i].setBorderPainted(false);
             m[i].setFocusPainted(false);
-            m[i].setPreferredSize(new Dimension(66,40));
+            m[i].setPreferredSize(new Dimension(65,40));
             m[i].setFont(new java.awt.Font("微软雅黑", 0, 14));
         }
+        // 由于初始没有M值，禁用MC和MR键
+        m[0].setEnabled(false);
+        m[1].setEnabled(false);
  
         // 下面进行计算器的整体布局，将calckeys和command画板放在计算器的中部，
         // 将文本框和calms画板放在计算器南部。
         
-        // 初始化一个大的画板，将上面建立的command、calckeys和calmsPanel画板放在里面
+        // 初始化一个大的画板，将上面建立的command、calckeys和calms画板放在里面
+        // 将历史文本域放在其中，等待之后调用
         // 画板采用边界布局管理器，画板里组件之间的水平和垂直方向上间隔都为0象素
         panel1.setLayout(new BorderLayout(0, 0));
         panel1.setBackground(Color.LIGHT_GRAY);
@@ -216,14 +244,14 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
         panel1.add("Center", commandsPanel);
         panel1.add("South", calckeysPanel);
         
-        // 初始化一个画板，将文本框放在里面
+        // 初始化一个画板，将文本框和切换键放在里面
         top.setLayout(new BorderLayout(0, 0));
-        top.add("North", operationText);
+        top.add("North",operationText);
         top.add("Center", resultText);
         top.add("South", nullText);
         
         // 初始化切换键，将切换键放在一个画板内
-        switchpanel.setLayout(new BorderLayout(0,0)); 
+        switchPanel.setLayout(new BorderLayout(0,0)); 
         for (int i = 0; i < SWITCHBUTTON.length; i++) {
         switchbutton[i] = new JButton(SWITCHBUTTON[i]);
         switchbutton[i].setBackground(Color.black);
@@ -234,14 +262,23 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
         switchbutton[i].setFont(new java.awt.Font("", 0, 24));
         }
         // 将切换键放在两侧，切换标示文本框放在中间，向左对齐
-        switchpanel.add("West", switchbutton[0]);
-        switchpanel.add("Center", switchText);
-        switchpanel.add("East", switchbutton[1]);
+        switchPanel.add("West", switchbutton[0]);
+        switchPanel.add("Center", switchText);
+        switchPanel.add("East", switchbutton[1]);
+        
+        
+        // 初始化删除键,把删除键放在删除键画板内
+        delete.setBackground(Color.darkGray);
+        delete.setForeground(Color.white);
+        delete.setBorderPainted(false);
+        delete.setFocusPainted(false);
+        delete.setPreferredSize(new Dimension(396,40));
+        delete.setFont(new java.awt.Font("等线", 0, 20));
  
         // 整体布局
         getContentPane().setLayout(new BorderLayout(0, 0));
         getContentPane().setBackground(Color.LIGHT_GRAY);
-        getContentPane().add("North", switchpanel);
+        getContentPane().add("North", switchPanel);
         getContentPane().add("Center", top);
         getContentPane().add("South", panel1);
         
@@ -267,6 +304,9 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
             switchbutton[i].addMouseListener(this);
             switchbutton[i].addKeyListener(this);
         }
+        delete.addActionListener(this);
+        delete.addMouseListener(this);
+        delete.addKeyListener(this);
     }
     
     /**
@@ -278,8 +318,8 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
     public void mouseEntered(MouseEvent e){
     	// 获取事件源的标签
     	JButton btn = (JButton) e.getSource();
-    	// 组件颜色深化
-    	btn.setBackground(Color.LIGHT_GRAY);
+    	// 若按钮仍可用，将组件颜色深化
+    	if(btn.isEnabled()) btn.setBackground(Color.LIGHT_GRAY);
     }
 
     public void mouseExited(MouseEvent e){
@@ -317,19 +357,44 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
     		handleNumber(String.valueOf(e.getKeyChar()));
         }else if(e.getKeyChar()=='/'){
         	// 用户按了"/"键
-        	handleOperator("÷");
+        	try {
+				handleOperator("÷");
+			} catch (ScriptException e1) {
+				// TODO 自动生成的 catch 块
+				e1.printStackTrace();
+			}
         }else if(e.getKeyChar()=='*'){
         	// 用户按了"*"键
-        	handleOperator("×");
+        	try {
+				handleOperator("×");
+			} catch (ScriptException e1) {
+				// TODO 自动生成的 catch 块
+				e1.printStackTrace();
+			}
         }else if(e.getKeyChar()=='-'){
         	// 用户按了"-"键
-        	handleOperator("－");
+        	try {
+				handleOperator("－");
+			} catch (ScriptException e1) {
+				// TODO 自动生成的 catch 块
+				e1.printStackTrace();
+			}
         }else if(e.getKeyChar()=='+'){
         	// 用户按了"+"键
-        	handleOperator("＋");
+        	try {
+				handleOperator("＋");
+			} catch (ScriptException e1) {
+				// TODO 自动生成的 catch 块
+				e1.printStackTrace();
+			}
         }else if(e.getKeyChar()=='='){
         	// 用户按了"="键
-        	handleOperator(String.valueOf(e.getKeyChar()));
+        	try {
+				handleOperator(String.valueOf(e.getKeyChar()));
+			} catch (ScriptException e1) {
+				// TODO 自动生成的 catch 块
+				e1.printStackTrace();
+			}
         }else if(e.getKeyChar()=='。'){
         	// 用户按了"。"键
         	handleNumber("·");
@@ -343,58 +408,58 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
     	// 分类
     	if (e.getKeyChar()=='\b'){
     		// 用户按了"Backspace"键
-    		keys[2].setBackground(Color.LIGHT_GRAY);
+    		keys[3].setBackground(Color.LIGHT_GRAY);
     	}else if(e.getKeyChar()=='1'){
     		// 用户按了"1"键
-    		keys[12].setBackground(Color.LIGHT_GRAY);
+    		keys[16].setBackground(Color.LIGHT_GRAY);
     	}else if(e.getKeyChar()=='2'){
     		// 用户按了"2"键
-    		keys[13].setBackground(Color.LIGHT_GRAY);
+    		keys[17].setBackground(Color.LIGHT_GRAY);
     	}else if(e.getKeyChar()=='3'){
     		// 用户按了"3"键
-    		keys[14].setBackground(Color.LIGHT_GRAY);
+    		keys[18].setBackground(Color.LIGHT_GRAY);
     	}else if(e.getKeyChar()=='4'){
     		// 用户按了"4"键
-    		keys[8].setBackground(Color.LIGHT_GRAY);
+    		keys[11].setBackground(Color.LIGHT_GRAY);
     	}else if(e.getKeyChar()=='5'){
     		// 用户按了"5"键
-    		keys[9].setBackground(Color.LIGHT_GRAY);
+    		keys[12].setBackground(Color.LIGHT_GRAY);
     	}else if(e.getKeyChar()=='6'){
     		// 用户按了"6"键
-    		keys[10].setBackground(Color.LIGHT_GRAY);
+    		keys[13].setBackground(Color.LIGHT_GRAY);
     	}else if(e.getKeyChar()=='7'){
     		// 用户按了"7"键
-    		keys[4].setBackground(Color.LIGHT_GRAY);
+    		keys[6].setBackground(Color.LIGHT_GRAY);
     	}else if(e.getKeyChar()=='8'){
     		// 用户按了"8"键
-    		keys[5].setBackground(Color.LIGHT_GRAY);
+    		keys[7].setBackground(Color.LIGHT_GRAY);
     	}else if(e.getKeyChar()=='9'){
     		// 用户按了"9"键
-    		keys[6].setBackground(Color.LIGHT_GRAY);
+    		keys[8].setBackground(Color.LIGHT_GRAY);
     	}else if(e.getKeyChar()=='0'){
     		// 用户按了"0"键
-    		keys[17].setBackground(Color.LIGHT_GRAY);
+    		keys[22].setBackground(Color.LIGHT_GRAY);
     	}else if(e.getKeyChar()=='+'){
     		// 用户按了"+"键
-    		keys[15].setBackground(Color.LIGHT_GRAY);
+    		keys[19].setBackground(Color.LIGHT_GRAY);
     	}else if(e.getKeyChar()=='-'){
     		// 用户按了"-"键
-    		keys[11].setBackground(Color.LIGHT_GRAY);
+    		keys[14].setBackground(Color.LIGHT_GRAY);
     	}else if(e.getKeyChar()=='/'){
     		// 用户按了"/"键
-    		keys[3].setBackground(Color.LIGHT_GRAY);
+    		keys[4].setBackground(Color.LIGHT_GRAY);
     	}else if(e.getKeyChar()=='*'){
     		// 用户按了"*"键
-    		keys[7].setBackground(Color.LIGHT_GRAY);
+    		keys[9].setBackground(Color.LIGHT_GRAY);
     	}else if(e.getKeyChar()=='='){
     		// 用户按了"="键
-    		keys[19].setBackground(Color.LIGHT_GRAY);
+    		keys[24].setBackground(Color.LIGHT_GRAY);
     	}else if(e.getKeyChar()=='。'){
     		// 用户按了"。"键
-    		keys[18].setBackground(Color.LIGHT_GRAY);
+    		keys[23].setBackground(Color.LIGHT_GRAY);
     	}else if(e.getKeyChar()=='.'){
     		// 用户按了"."键
-    		keys[18].setBackground(Color.LIGHT_GRAY);
+    		keys[23].setBackground(Color.LIGHT_GRAY);
     	}
     }
     
@@ -402,58 +467,58 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
     	// 分类
     	if (e.getKeyChar()=='\b'){
     		// 用户按了"Backspace"键
-    		keys[2].setBackground(Color.darkGray);
+    		keys[3].setBackground(Color.darkGray);
     	}else if(e.getKeyChar()=='1'){
     		// 用户按了"1"键
-    		keys[12].setBackground(Color.darkGray);
+    		keys[16].setBackground(Color.darkGray);
     	}else if(e.getKeyChar()=='2'){
     		// 用户按了"2"键
-    		keys[13].setBackground(Color.darkGray);
+    		keys[17].setBackground(Color.darkGray);
     	}else if(e.getKeyChar()=='3'){
     		// 用户按了"3"键
-    		keys[14].setBackground(Color.darkGray);
+    		keys[18].setBackground(Color.darkGray);
     	}else if(e.getKeyChar()=='4'){
     		// 用户按了"4"键
-    		keys[8].setBackground(Color.darkGray);
+    		keys[11].setBackground(Color.darkGray);
     	}else if(e.getKeyChar()=='5'){
     		// 用户按了"5"键
-    		keys[9].setBackground(Color.darkGray);
+    		keys[12].setBackground(Color.darkGray);
     	}else if(e.getKeyChar()=='6'){
     		// 用户按了"6"键
-    		keys[10].setBackground(Color.darkGray);
+    		keys[13].setBackground(Color.darkGray);
     	}else if(e.getKeyChar()=='7'){
     		// 用户按了"7"键
-    		keys[4].setBackground(Color.darkGray);
+    		keys[6].setBackground(Color.darkGray);
     	}else if(e.getKeyChar()=='8'){
     		// 用户按了"8"键
-    		keys[5].setBackground(Color.darkGray);
+    		keys[7].setBackground(Color.darkGray);
     	}else if(e.getKeyChar()=='9'){
     		// 用户按了"9"键
-    		keys[6].setBackground(Color.darkGray);
+    		keys[8].setBackground(Color.darkGray);
     	}else if(e.getKeyChar()=='0'){
     		// 用户按了"0"键
-    		keys[17].setBackground(Color.darkGray);
+    		keys[22].setBackground(Color.darkGray);
     	}else if(e.getKeyChar()=='+'){
     		// 用户按了"+"键
-    		keys[15].setBackground(Color.darkGray);
+    		keys[19].setBackground(Color.darkGray);
     	}else if(e.getKeyChar()=='-'){
     		// 用户按了"-"键
-    		keys[11].setBackground(Color.darkGray);
+    		keys[14].setBackground(Color.darkGray);
     	}else if(e.getKeyChar()=='/'){
     		// 用户按了"/"键
-    		keys[3].setBackground(Color.darkGray);
+    		keys[4].setBackground(Color.darkGray);
     	}else if(e.getKeyChar()=='*'){
     		// 用户按了"*"键
-    		keys[7].setBackground(Color.darkGray);
+    		keys[9].setBackground(Color.darkGray);
     	}else if(e.getKeyChar()=='='){
     		// 用户按了"="键
-    		keys[19].setBackground(Color.darkGray);
+    		keys[24].setBackground(Color.darkGray);
     	}else if(e.getKeyChar()=='。'){
     		// 用户按了"。"键
-    		keys[18].setBackground(Color.darkGray);
+    		keys[23].setBackground(Color.darkGray);
     	}else if(e.getKeyChar()=='.'){
     		// 用户按了"."键
-    		keys[18].setBackground(Color.darkGray);
+    		keys[23].setBackground(Color.darkGray);
     	}
     }
     
@@ -463,13 +528,13 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
     public void actionPerformed(ActionEvent e) {
         // 获取事件源的标签
         String label = e.getActionCommand();
-        if (label.equals(KEYS[2])) {
+        if (label.equals(KEYS[3])) {
             // 用户按了"Backspace"键
             handleBackspace();
-        } else if (label.equals(KEYS[0])) {
+        } else if (label.equals(KEYS[1])) {
             // 用户按了"CE"键
             resultText.setText("0");
-        } else if (label.equals(KEYS[1])) {
+        } else if (label.equals(KEYS[2])) {
             // 用户按了"C"键
             handleC();
         } else if ("0123456789·".indexOf(label) >= 0) {
@@ -481,9 +546,16 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
         } else if("⇌↺↻".indexOf(label)>= 0){
         	//用户按了切换键
         	handleSwitch(label);
+        } else if(label.equals("Delete")){
+        	historyText.setText(" 尚无历史记录");
         } else{
             // 用户按了运算符键
-            handleOperator(label);
+            try {
+				handleOperator(label);
+			} catch (ScriptException e1) {
+				// TODO 自动生成的 catch 块
+				e1.printStackTrace();
+			}
         }
     }
     
@@ -491,6 +563,7 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
      * 处理Backspace键被按下的事件
      */
     private void handleBackspace() {
+    	resultText.setText(resultText.getText().replace(",",""));
         String text = resultText.getText();
         int i = text.length();
         if (i > 0) {
@@ -500,7 +573,6 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
                 // 如果文本没有了内容，则初始化计算器的各种值
                 resultText.setText("0");
                 operationText.setText("");
-                resultNum = 0;
                 firstDigit = true;
                 operation = true;
                 operator = "=";
@@ -508,6 +580,7 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
                 // 显示新的文本
                 resultText.setText(text);
             }
+            resultAction();
         }
     }
  
@@ -519,7 +592,8 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
     private void handleNumber(String key) {
     	if ((key.equals("·")) && (resultText.getText().indexOf(".") < 0)) {
             // 输入的是小数点，并且之前没有小数点，则将小数点附在结果文本框的后面
-            resultText.setText(resultText.getText() + ".");
+    		if(firstDigit) resultText.setText(".");
+    		else resultText.setText(resultText.getText() + ".");
         }else if (firstDigit) {
             // 输入的第一个数字
             resultText.setText(key);
@@ -530,7 +604,8 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
         // 以后输入的肯定不是第一个数字了
         firstDigit = false;
         // 类型为数字符
-        operation = true;
+        operation = true;  
+        resultAction();  	
     }
  
     /**
@@ -540,7 +615,6 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
         // 初始化计算器的各种值
         resultText.setText("0");
         operationText.setText("");
-        resultNum = 0;
         firstDigit = true;
         operation = true;
         operator = "=";
@@ -552,36 +626,40 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
     private void handleM(String key) {
         long t1;
         double t2;
-    	 if (key.equals("MC")) {
-         	memory[memoryList] = 0;
-         } else if (key.equals("MS")) {
-         	memory[memoryList] = getNumberFromText();
-         } else if (key.equals("MR")) {
+        resultText.setText(resultText.getText().replace(",",""));
+    	if (key.equals("MC")) {
+        	memory[memoryList] = 0;
+        	memoryFlag[memoryList] = false;
+        } else if (key.equals("MS")) {
+        	memory[memoryList] = getNumberFromText();
+        	memoryFlag[memoryList] = true;
+        } else if (key.equals("MR")) {
          	t1 = (long) memory[memoryList];
-             t2 = memory[memoryList] - t1;
-             if (t2 == 0) {
-                 resultText.setText(String.valueOf(t1));
-             } else {
-                 resultText.setText(String.valueOf(memory[memoryList]));
-             }
-         } else if (key.equals("M+")) {
-         	memory[memoryList] += getNumberFromText();
-         } else if (key.equals("M+")) {
-         	memory[memoryList] -= getNumberFromText();
-         } else if (key.equals("M1")) {
-         	memoryList = 1;
-         	m[5].setText("M2");
-         	// panel1.repaint(); 
-         	// panel1.revalidate(); 
-         } else if (key.equals("M2")) {
-         	m[5].setText("M3");
+            t2 = memory[memoryList] - t1;
+            if (t2 == 0) {
+                resultText.setText(String.valueOf(t1));
+            } else {
+                resultText.setText(String.valueOf(memory[memoryList]));
+            }
+        } else if (key.equals("M+")) {
+        	memory[memoryList] += getNumberFromText();
+        	memoryFlag[memoryList] = true;
+        } else if (key.equals("M-")) {
+        	memory[memoryList] -= getNumberFromText();
+        	memoryFlag[memoryList] = true;
+        } else if (key.equals("M1")) {
+        	memoryList = 1;
+        	m[5].setText("M2"); 
+        } else if (key.equals("M2")) {
+        	m[5].setText("M3");
          	memoryList = 2;
-         	// panel1.revalidate(); 
-         } else if (key.equals("M3")) {
+        } else if (key.equals("M3")) {
          	m[5].setText("M1");
          	memoryList = 0;
-         	// panel1.revalidate(); 
-         } 
+        } 
+        m[0].setEnabled(memoryFlag[memoryList]);
+        m[1].setEnabled(memoryFlag[memoryList]);
+        resultAction();
     }
     
     /**
@@ -589,9 +667,28 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
      */
     private void handleSwitch(String key) {
     	if (key.equals("⇌")) {
-    		
-    	} else	{
-    	
+    		this.dispose();
+    		Programmer_Calculator PCalculator1=new Programmer_Calculator();
+    		PCalculator1.setVisible(true);
+    	} else if(key.equals("↺")){
+    		 panel1.remove(commandsPanel);
+    		 panel1.remove(calckeysPanel);
+    		 panel1.add("Center",scroll);
+    		 panel1.add("South",delete);
+    		 switchbutton[1].setText("↻");
+    		 panel1.revalidate(); 
+    		 panel1.repaint();
+    		 for (int i = 0; i < M.length; i++) m[i].setEnabled(false);
+    	} else if(key.equals("↻")){
+    		panel1.remove(scroll);
+    		panel1.remove(delete);
+    		panel1.add("Center",commandsPanel);
+    		panel1.add("South",calckeysPanel);
+    		switchbutton[1].setText("↺");
+    		panel1.revalidate(); 
+    		panel1.repaint(); 
+   		 	for (int i = 0; i < 2; i++) m[i].setEnabled(memoryFlag[memoryList]);
+   		    for (int i = 2; i < M.length; i++) m[i].setEnabled(true);
     	}
     }
     
@@ -599,74 +696,73 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
      * 处理运算符键被按下的事件
      *
      * @param key
+     * @throws ScriptException 
      */
-    private void handleOperator(String key) {
-        long t1;
-        double t2;
-        if ("＋－×÷".indexOf(key) >= 0) {
-        	operationAction();
+    private void handleOperator(String key) throws ScriptException {
+    	long t1 = (long) getNumberFromText();
+    	double t2 = getNumberFromText() - t1;
+        resultText.setText(resultText.getText().replace(",",""));
+        if ("＋－×÷Mod)".indexOf(key) >= 0) {
+        	if(!operator.equals(")")) operationAction();
             operation = false;
             operationText.setText(operationText.getText()+" "+key+" ");
-        } else if(key.equals("1/x")){
-        	if(operation) operationAction();
-            operation = false;
-        	  // 倒数运算
-            if (resultNum == 0.0) {
-                // 操作不合法
-                operateValidFlag = false;
-                resultText.setText("除数不能为零");
-                operator = "=";
-            } else {
-                resultNum = 1 / resultNum;
-                operationText.setText("1/("+operationText.getText()+")");
-            }
-        } else if (key.equals("x²")) {
-        	if(operation) operationAction();
-        	// 寻找基本运算符并删去
-        	else operationText.setText(operationText.getText().substring(0,operationText.getText().length()-3)+operationText.getText().substring(operationText.getText().length()-3,operationText.getText().length()).replace(" "+operator+" ",""));	
-            operation = false;
-            // 平方运算
-        	resultNum *= resultNum;
-        	operationText.setText("sqr("+operationText.getText()+")");
-        } else if (key.equals("√")) {
-        	if(operation) operationAction();
-        	else operationText.setText(operationText.getText().substring(0,operationText.getText().length()-3)+operationText.getText().substring(operationText.getText().length()-3,operationText.getText().length()).replace(" "+operator+" ",""));	        	operation = false;
-            operation = false;
-            // 平方根运算
-            resultNum = Math.sqrt(resultNum);
-            operationText.setText("sqrt("+operationText.getText()+")");
-        } else if (key.equals("%")) {
-        	if(operation) operationAction();
-        	else operationText.setText(operationText.getText().substring(0,operationText.getText().length()-3)+operationText.getText().substring(operationText.getText().length()-3,operationText.getText().length()).replace(" "+operator+" ",""));	        	operation = false;
-            operation = false;
-            // 百分号运算，除以100
-            resultNum = resultNum / 100;
-        } else if (key.equals("±")) {
-        	if(operation) operationAction();
-        	else operationText.setText(operationText.getText().substring(0,operationText.getText().length()-3)+operationText.getText().substring(operationText.getText().length()-3,operationText.getText().length()).replace(" "+operator+" ",""));	        	operation = false;
-            operation = false;
-            // 正数负数运算
-            resultNum = resultNum * (-1);
         } else if (key.equals("=")) {
-        	operationAction();
+        	if(!operator.equals(")")) operationAction();
+        	Calculation();
+        	if(historyText.getText().equals("  尚无历史记录")) historyText.setText("");
+        	// 向历史记录中输入运算过程
+        	historyText.append("  "+operationText.getText()+"="+"\n");
             operation = true;
-        	operationText.setText("");
+         // 向历史记录中输入结果值并自动滚动到底端
+       		historyText.append("  "+resultText.getText()+"\n"+"\n");
+       		historyText.setCaretPosition(historyText.getText().length());
+       		operationText.setText("");
+
+        } else{ 
+        	operation = true;
+        	if (key.equals("<HTML>x<sup>y</sup></HTML>")) operationText.setText(operationText.getText()+"Pow( "+resultText.getText()+",");
+        	else if (key.equals("sin")) {
+        		operationText.setText(operationText.getText()+"sin("+resultText.getText()+")");
+        		resultText.setText(String.valueOf(Math.sin(getNumberFromText())));
+        	}else if (key.equals("cos")) {
+        		operationText.setText(operationText.getText()+"cos("+resultText.getText()+")");
+        		resultText.setText(String.valueOf(Math.cos(getNumberFromText())));
+        	}else if (key.equals("tan")) {
+        		operationText.setText(operationText.getText()+"tan("+resultText.getText()+")");
+        		resultText.setText(String.valueOf(Math.tan(getNumberFromText())));
+        	}else if (key.equals("Deg")) {
+        		operationText.setText(operationText.getText()+"Deg("+resultText.getText()+")");
+        		resultText.setText(String.valueOf(Math.toDegrees(getNumberFromText())));
+        	}else if (key.equals("In")) {
+        		operationText.setText(operationText.getText()+"In("+resultText.getText()+")");
+        		resultText.setText(String.valueOf(Math.log(getNumberFromText())));
+        	}else if (key.equals("<HTML>sin<sup>-1</sup></HTML>")) {
+        		operationText.setText(operationText.getText()+"arcsin("+resultText.getText()+")");
+        		resultText.setText(String.valueOf(Math.asin(getNumberFromText())));
+        	}
+        	else if (key.equals("<HTML>cos<sup>-1</sup></HTML>")) {
+        		operationText.setText(operationText.getText()+"arccos("+resultText.getText()+")");
+        		resultText.setText(String.valueOf(Math.acos(getNumberFromText())));
+        	}else if (key.equals("<HTML>tan<sup>-1</sup></HTML>")) { 
+        		operationText.setText(operationText.getText()+"arctan("+resultText.getText()+")");
+        		resultText.setText(String.valueOf(Math.atan(getNumberFromText())));
+        	}else if (key.equals("e")) resultText.setText(String.valueOf(Math.E));
+        	else if (key.equals("π")) resultText.setText(String.valueOf(Math.PI));
+        	else if (key.equals("(")) operationText.setText(operationText.getText()+"( ");
+        	else if (key.equals("Ran")) resultText.setText(String.valueOf(Math.random()));
         }
-        if (operateValidFlag) {
-            // 双精度浮点数的运算
-            t1 = (long) resultNum;
-            t2 = resultNum - t1;
-            if (t2 == 0) {
-                resultText.setText(String.valueOf(t1));
-            } else {
-                resultText.setText(String.valueOf(resultNum));
-            }
-            resultNum = getNumberFromText();
-            operator = key;
-        } 
+    	t1 = (long) getNumberFromText();
+    	t2 = getNumberFromText() - t1;
+       	// 浮点运算
+    	if (t2 == 0) {
+    		resultText.setText(String.valueOf(t1));
+    	}else{
+    		resultText.setText(String.valueOf(getNumberFromText()));
+    	}
+       	resultAction();
+       	operator = key;
         // 运算符等于用户按的按钮
         firstDigit = true;
-        operateValidFlag = true;
     }
  
     /**
@@ -686,19 +782,17 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
     
     /**
      * 改变运算文本框的数字
-     *
-     * @param key
      */
     private void operationAction(){
         long t1;
         double t2;
         if(!operation){
     		// 防止误输入
-        	resultNum = getNumberFromText();
-        	operationText.setText(operationText.getText().substring(0,operationText.getText().length()-3));
-        	// 当前输入运算符
-        	operator = "=";
-        }else{
+        	if(operationText.getText().length() >=3)
+        	operationText.setText(operationText.getText().substring(0,operationText.getText().length()-3)
+        			+operationText.getText().substring(operationText.getText().length()-3,
+        					operationText.getText().length()).replace(" "+operator+" ",""));
+        }else if("＋－×÷=)ModπeRan<HTML>x<sup>y</sup></HTML>".indexOf(operator)>=0){
         	// 显示运算过程
         	t1 = (long) getNumberFromText();
         	t2 = getNumberFromText() - t1;
@@ -708,29 +802,73 @@ public class Science_Calculator extends JFrame implements ActionListener,MouseLi
         		operationText.setText(operationText.getText()+getNumberFromText());
         	}
         }
-        if (operator.equals("÷")) {
-            // 除法运算
-            // 如果当前结果文本框中的值等于0
-            if (getNumberFromText() == 0.0) {
-                // 操作不合法
-                operateValidFlag = false;
-                resultText.setText("除数不能为零");
-            } else {
-                resultNum /= getNumberFromText();
-            }
-        }  else if (operator.equals("＋")) {
-            // 加法运算
-            resultNum += getNumberFromText();
-        } else if (operator.equals("－")) {
-            // 减法运算
-            resultNum -= getNumberFromText();
-        } else if (operator.equals("×")) {
-            // 乘法运算
-            resultNum *= getNumberFromText();
-        } else if (operator.equals("=")){
-        	// 赋值运算
-            resultNum = getNumberFromText();
-        }
+
+    }
+    
+    /**
+     * 改变结果文本框的数字大小,并加上逗号
+     */
+    private void resultAction(){
+    	boolean Flag = false;
+    	if("0123456789.".indexOf(resultText.getText().substring(resultText.getText().length()-1,resultText.getText().length())) < 0) return;
+    	resultText.setText(resultText.getText().replace(",",""));
+    	if(resultText.getText().indexOf("-") >= 0) {
+    		resultText.setText(resultText.getText().replace("-",""));
+    		Flag = true;
+    	}
+    	StringBuffer s=new StringBuffer(resultText.getText());
+    	if(resultText.getText().indexOf(".") >= 0){
+    		for(int i=resultText.getText().indexOf(".")-3;i>0;i-=3)
+    			s.insert(i, ",");
+    	}
+    	else for(int i=s.length()-3;i>0;i-=3){
+    		s.insert(i,",");
+    	}
+		resultText.setText(s.toString());
+    	if(resultText.getText().length() == 14){
+    		resultText.setFont(new java.awt.Font("微软雅黑", 0, 50));
+    	}else if(resultText.getText().length() == 15){
+    		resultText.setFont(new java.awt.Font("微软雅黑", 0, 46));
+    	}else if(resultText.getText().length() == 16){
+    		resultText.setFont(new java.awt.Font("微软雅黑", 0, 43));
+    	}else if(resultText.getText().length() == 17){
+    		resultText.setFont(new java.awt.Font("微软雅黑", 0, 40));
+    	}else if(resultText.getText().length() == 18){
+    		resultText.setFont(new java.awt.Font("微软雅黑", 0, 39));
+    	}else if(resultText.getText().length() == 19){
+    		resultText.setFont(new java.awt.Font("微软雅黑", 0, 38));
+    	}else if(resultText.getText().length() >= 20){
+    		resultText.setFont(new java.awt.Font("微软雅黑", 0, 37));
+    		resultText.setText(s.toString().substring(0, 20));  	
+    	}else{
+    		resultText.setFont(new java.awt.Font("微软雅黑", 0, 56));
+    	}
+    	 if(Flag) resultText.setText("-"+resultText.getText());
+    }
+    
+    /**
+     * 进行科学运算
+     * @throws ScriptException 
+     */
+    private void Calculation() throws ScriptException{
+    	ScriptEngineManager manager = new ScriptEngineManager();
+        ScriptEngine se = manager.getEngineByName("js");
+        String result = operationText.getText();
+        result = result.replace("＋","+");
+        result = result.replace("－","-");
+        result = result.replace("×","*");
+        result = result.replace("÷","/");
+        result = result.replace("Pow","Math.pow");
+        result = result.replace("arcsin","Math.as in");
+        result = result.replace("arccos","Math.ac os");
+        result = result.replace("arctan","Math.at an");
+        result = result.replace("sin","Math.sin");
+        result = result.replace("cos","Math.cos");
+        result = result.replace("tan","Math.tan");
+        result = result.replace("Mod","%");
+        result = result.replace("In","Math.log");
+        result = result.replace("Deg","Math.toDegrees");
+        result = result.replace(" ","");
+    	resultText.setText(se.eval(result).toString());
     }
 }
-
